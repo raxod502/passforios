@@ -11,7 +11,7 @@ import ObjectiveGit
 
 class CommitLogsTableViewController: UITableViewController {
     var commits: [GTCommit] = []
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
         commits = PasswordStore.shared.getRecentCommits(count: 20)
@@ -22,7 +22,7 @@ class CommitLogsTableViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return commits.count
     }
-    
+
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "commitLogCell", for: indexPath)
         let formatter = DateFormatter()

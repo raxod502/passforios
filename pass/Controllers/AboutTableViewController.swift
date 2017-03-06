@@ -9,13 +9,13 @@
 import UIKit
 
 class AboutTableViewController: BasicStaticTableViewController {
-    
+
     override func viewDidLoad() {
         tableData = [
             // section 0
             [[.title: "Website", .action: "link", .link: "https://github.com/mssun/pass-ios.git"],
              [.title: "Contact Developer", .action: "link", .link: "mailto:bob@mssun.me?subject=passforiOS"],],
-            
+
             // section 1,
             [[.title: "Open Source Components", .action: "segue", .link: "showOpenSourceComponentsSegue"],
              [.title: "Special Thanks", .action: "segue", .link: "showSpecialThanksSegue"],],
@@ -23,7 +23,7 @@ class AboutTableViewController: BasicStaticTableViewController {
         navigationItemTitle = "About"
         super.viewDidLoad()
     }
-    
+
     override func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? {
         if section == tableData.count - 1 {
             let view = UIView()
@@ -38,7 +38,7 @@ class AboutTableViewController: BasicStaticTableViewController {
         }
         return nil
     }
-    
+
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         if section == 1 {
             return "Acknowledgements".uppercased()

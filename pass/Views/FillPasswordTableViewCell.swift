@@ -21,17 +21,17 @@ class FillPasswordTableViewCell: ContentTableViewCell {
 
         // Configure the view for the selected state
     }
-    
+
     @IBAction func generatePassword(_ sender: UIButton) {
         let plainPassword = Utils.randomString(length: 16)
         contentTextField.attributedText = Utils.attributedPassword(plainPassword: plainPassword)
         Utils.copyToPasteboard(textToCopy: plainPassword)
     }
-    
+
     override func getContent() -> String? {
         return contentTextField.attributedText?.string
     }
-    
+
     override func setContent(content: String) {
         contentTextField.attributedText = Utils.attributedPassword(plainPassword: content)
     }

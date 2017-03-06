@@ -24,7 +24,7 @@ class LabelTableViewCell: UITableViewCell {
     var isReveal = false
     var password: Password?
     let passwordDots = "••••••••••••"
-    
+
     var cellData: LabelTableViewCellData? {
         didSet {
             titleLabel.text = cellData?.title
@@ -36,13 +36,13 @@ class LabelTableViewCell: UITableViewCell {
             }
         }
     }
-    
+
     override var canBecomeFirstResponder: Bool {
         get {
             return true
         }
     }
-    
+
     override func awakeFromNib() {
         super.awakeFromNib()
     }
@@ -64,11 +64,11 @@ class LabelTableViewCell: UITableViewCell {
         }
         return action == #selector(copy(_:))
     }
-    
+
     override func copy(_ sender: Any?) {
         Utils.copyToPasteboard(textToCopy: cellData?.content)
     }
-        
+
     func revealPassword(_ sender: Any?) {
         if let plainPassword = cellData?.content {
             contentLabel.attributedText = Utils.attributedPassword(plainPassword: plainPassword)
@@ -77,12 +77,12 @@ class LabelTableViewCell: UITableViewCell {
         }
         isReveal = true
     }
-    
+
     func concealPassword(_ sender: Any?) {
         contentLabel.text = passwordDots
         isReveal = false
     }
-    
+
     func openLink(_ sender: Any?) {
         Utils.copyToPasteboard(textToCopy: password?.password)
         UIApplication.shared.open(URL(string: cellData!.content)!, options: [:], completionHandler: nil)

@@ -13,7 +13,7 @@ class AdvancedSettingsTableViewController: UITableViewController {
 
     @IBOutlet weak var eraseDataTableViewCell: UITableViewCell!
     @IBOutlet weak var discardChangesTableViewCell: UITableViewCell!
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
     }
@@ -53,7 +53,7 @@ class AdvancedSettingsTableViewController: UITableViewController {
                         }
                     }
                 }
-                
+
             }))
             alert.addAction(UIAlertAction(title: "Dismiss", style: UIAlertActionStyle.cancel, handler:nil))
             self.present(alert, animated: true, completion: nil)

@@ -16,7 +16,7 @@ class GitServerSettingTableViewController: UITableViewController {
     @IBOutlet weak var authSSHKeyCell: UITableViewCell!
     @IBOutlet weak var authPasswordCell: UITableViewCell!
     var password: String?
-    
+
     var authenticationMethod = Defaults[.gitRepositoryAuthenticationMethod]
 
     private func checkAuthenticationMethod(method: String) {
@@ -56,24 +56,24 @@ class GitServerSettingTableViewController: UITableViewController {
         checkAuthenticationMethod(method: authenticationMethod!)
         authSSHKeyCell.accessoryType = .detailButton
     }
-    
+
     override func tableView(_ tableView: UITableView, accessoryButtonTappedForRowWith indexPath: IndexPath) {
         let cell = tableView.cellForRow(at: indexPath)
         if cell == authSSHKeyCell {
             performSegue(withIdentifier: "showSSHKeySettingSegue", sender: self)
         }
     }
-    
+
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        
+
     }
-    
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         view.endEditing(true)
     }
-    
+
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
         if identifier == "saveGitServerSettingSegue" {
             if gitRepositoryURLTextField.text == "" || authenticationMethod == nil {
@@ -112,7 +112,7 @@ class GitServerSettingTableViewController: UITableViewController {
         checkAuthenticationMethod(method: authenticationMethod!)
         tableView.deselectRow(at: indexPath, animated: true)
     }
-    
+
     @IBAction func save(_ sender: Any) {
         if authenticationMethod == "Password" {
             let alert = UIAlertController(title: "Password", message: "Please fill in the password of your Git account.", preferredStyle: UIAlertControllerStyle.alert)

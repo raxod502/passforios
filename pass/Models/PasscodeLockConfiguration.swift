@@ -11,20 +11,20 @@ import PasscodeLock
 import SwiftyUserDefaults
 
 struct PasscodeLockConfiguration: PasscodeLockConfigurationType {
-    
+
     let repository: PasscodeRepositoryType
     let passcodeLength = 4
     var isTouchIDAllowed = Defaults[.isTouchIDOn]
     let shouldRequestTouchIDImmediately = true
     let maximumInccorectPasscodeAttempts = 3
-    
+
     init(repository: PasscodeRepositoryType) {
-        
+
         self.repository = repository
     }
-    
+
     init() {
-        
+
         self.repository = PasscodeLockRepository()
     }
 }
