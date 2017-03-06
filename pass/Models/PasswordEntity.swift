@@ -19,7 +19,7 @@ extension PasswordEntity {
         password = Password(name: name!, plainText: plainText)
         return password
     }
-
+    
     func encrypt(password: Password) throws -> Data {
         name = password.name
         let plainData = password.getPlainData()

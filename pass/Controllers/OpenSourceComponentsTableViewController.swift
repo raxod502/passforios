@@ -33,7 +33,7 @@ class OpenSourceComponentsTableViewController: BasicStaticTableViewController {
          "https://github.com/SVProgressHUD/SVProgressHUD",
          "https://github.com/SVProgressHUD/SVProgressHUD/blob/master/LICENSE.txt"],
     ]
-
+    
     override func viewDidLoad() {
         tableData.append([])
         for item in openSourceComponents {
@@ -44,7 +44,7 @@ class OpenSourceComponentsTableViewController: BasicStaticTableViewController {
         navigationItemTitle = "Open Source Components"
         super.viewDidLoad()
     }
-
+    
     func actOnDetailDisclosureButton(_ sender: Any?) {
         if let link = sender as? String {
             let svc = SFSafariViewController(url: URL(string: link)!, entersReaderIfAvailable: false)

@@ -26,16 +26,16 @@ enum CellDataKey {
 class BasicStaticTableViewController: UITableViewController, MFMailComposeViewControllerDelegate {
     var tableData = [[Dictionary<CellDataKey, Any>]]()
     var navigationItemTitle: String?
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         navigationItem.title = navigationItemTitle
     }
-
+    
     override func numberOfSections(in tableView: UITableView) -> Int {
         return tableData.count
     }
-
+    
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return tableData[section].count
     }
@@ -44,20 +44,20 @@ class BasicStaticTableViewController: UITableViewController, MFMailComposeViewCo
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
-
+    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-
+        
         let cellData = tableData[indexPath.section][indexPath.row]
         let cellDataStyle = cellData[CellDataKey.style] as? CellDataStyle
         var cell: UITableViewCell?
-
+        
         switch cellDataStyle ?? .defaultStyle {
         case .value1:
             cell = UITableViewCell(style: .value1, reuseIdentifier: "value1 cell")
         default:
             cell = UITableViewCell(style: .default, reuseIdentifier: "default cell")
         }
-
+        
         if let detailText = cellData[CellDataKey.detailText] as? String {
             cell?.detailTextLabel?.text = detailText
         }
@@ -66,17 +66,17 @@ class BasicStaticTableViewController: UITableViewController, MFMailComposeViewCo
         } else {
             cell?.accessoryType = .disclosureIndicator
         }
-
+        
         cell?.textLabel?.text = cellData[CellDataKey.title] as? String
         return cell ?? UITableViewCell()
     }
-
+    
     override func tableView(_ tableView: UITableView, accessoryButtonTappedForRowWith indexPath: IndexPath) {
         let cellData = tableData[indexPath.section][indexPath.row]
         let selector = cellData[CellDataKey.detailDisclosureAction] as? Selector
         perform(selector, with: cellData[CellDataKey.detailDisclosureData])
     }
-
+    
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         let cellData = tableData[indexPath.section][indexPath.row]
@@ -105,7 +105,7 @@ class BasicStaticTableViewController: UITableViewController, MFMailComposeViewCo
             break
         }
     }
-
+    
     func sendEmail(toRecipients recipients: [String], subject: String) {
         let mailVC = MFMailComposeViewController()
         mailVC.mailComposeDelegate = self
@@ -114,7 +114,7 @@ class BasicStaticTableViewController: UITableViewController, MFMailComposeViewCo
         mailVC.setMessageBody("", isHTML: false)
         self.present(mailVC, animated: true, completion: nil)
     }
-
+    
     func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
         controller.dismiss(animated: true)
     }

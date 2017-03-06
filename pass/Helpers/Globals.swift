@@ -17,13 +17,13 @@ class Globals {
 
     static let sshPublicKeyURL = URL(fileURLWithPath: "\(documentPath)/ssh_key.pub")
     static let sshPrivateKeyURL = URL(fileURLWithPath: "\(documentPath)/ssh_key")
-
+    
     static let repositoryPath = "\(libraryPath)/password-store"
     static var passcodeConfiguration = PasscodeLockConfiguration()
-
+    
     static let red = UIColor(red:1.00, green:0.23, blue:0.19, alpha:1.0)
     static let blue = UIColor(red:0.00, green:0.48, blue:1.00, alpha:1.0)
-
+    
     private init() { }
 }
 

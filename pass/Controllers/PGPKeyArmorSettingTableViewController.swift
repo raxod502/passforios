@@ -13,14 +13,14 @@ class PGPKeyArmorSettingTableViewController: UITableViewController {
     @IBOutlet weak var armorPublicKeyTextView: UITextView!
     @IBOutlet weak var armorPrivateKeyTextView: UITextView!
     var pgpPassphrase: String?
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         armorPublicKeyTextView.text = Defaults[.pgpPublicKeyArmor]
         armorPrivateKeyTextView.text = Defaults[.pgpPrivateKeyArmor]
         pgpPassphrase = PasswordStore.shared.pgpKeyPassphrase
     }
-
+    
     private func createSavePassphraseAlert() -> UIAlertController {
         let savePassphraseAlert = UIAlertController(title: "Passphrase", message: "Do you want to save the passphrase for later decryption?", preferredStyle: UIAlertControllerStyle.alert)
         savePassphraseAlert.addAction(UIAlertAction(title: "No", style: UIAlertActionStyle.default) { _ in
@@ -33,7 +33,7 @@ class PGPKeyArmorSettingTableViewController: UITableViewController {
         })
         return savePassphraseAlert
     }
-
+    
     @IBAction func save(_ sender: Any) {
         let alert = UIAlertController(title: "Passphrase", message: "Please fill in the passphrase of your PGP secret key.", preferredStyle: UIAlertControllerStyle.alert)
         alert.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.default, handler: {_ in

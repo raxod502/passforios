@@ -9,7 +9,7 @@
 import UIKit
 
 class EditPasswordTableViewController: PasswordEditorTableViewController {
-
+    
     var password: Password?
 
     override func viewDidLoad() {
@@ -23,7 +23,7 @@ class EditPasswordTableViewController: PasswordEditorTableViewController {
 
         super.viewDidLoad()
     }
-
+    
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
         if identifier == "saveEditPasswordSegue" {
             let nameCell = tableView.cellForRow(at: IndexPath(row: 0, section: 0)) as! ContentTableViewCell
@@ -38,7 +38,7 @@ class EditPasswordTableViewController: PasswordEditorTableViewController {
         }
         return true
     }
-
+    
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "saveEditPasswordSegue" {
             let cells = tableView.visibleCells

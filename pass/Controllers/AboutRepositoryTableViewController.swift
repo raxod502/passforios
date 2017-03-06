@@ -25,15 +25,15 @@ class AboutRepositoryTableViewController: BasicStaticTableViewController {
         indicator.startAnimating()
         tableView.addSubview(indicator)
         tableView.addSubview(indicatorLable)
-
+        
         DispatchQueue.global(qos: .userInitiated).async {
             let numberFormatter = NumberFormatter()
             numberFormatter.numberStyle = NumberFormatter.Style.decimal
             let fm = FileManager.default
-
+            
             let passwordEntities = PasswordStore.shared.fetchPasswordEntityCoreData(withDir: false)
             let numberOfPasswords = numberFormatter.string(from: NSNumber(value: passwordEntities.count))!
-
+            
             var size = UInt64(0)
             do {
                 if fm.fileExists(atPath: PasswordStore.shared.storeURL.path) {
@@ -43,7 +43,7 @@ class AboutRepositoryTableViewController: BasicStaticTableViewController {
                 print(error)
             }
             let sizeOfRepository = ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: ByteCountFormatter.CountStyle.file)
-
+            
             let numberOfCommits = PasswordStore.shared.storeRepository?.numberOfCommits(inCurrentBranch: NSErrorPointer(nilLiteral: ())) ?? 0
             let numberOfCommitsString = numberFormatter.string(from: NSNumber(value: numberOfCommits))!
 

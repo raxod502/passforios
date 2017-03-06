@@ -23,15 +23,15 @@ class AddPasswordTableViewController: UITableViewController {
         tableView.estimatedRowHeight = 48
         tableView.allowsSelection = false
     }
-
+    
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return 1
     }
-
+    
     override func numberOfSections(in tableView: UITableView) -> Int {
         return tableTitles.count
     }
-
+    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         switch tableTitles[indexPath.section] {
         case "additions":
@@ -47,13 +47,13 @@ class AddPasswordTableViewController: UITableViewController {
             return cell
         }
     }
-
+    
     override func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
         let headerView = UITableViewHeaderFooterView()
         headerView.textLabel?.text = tableTitles[section].uppercased()
         return headerView
     }
-
+    
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "saveAddPasswordSegue" {
             let nameCell = getCellForName(name: "name")! as! TextFieldTableViewCell
@@ -65,15 +65,15 @@ class AddPasswordTableViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
         return 44
     }
-
+    
     override func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
         return 0.1
     }
-
+    
     func getCellAt(section: Int) -> UITableViewCell? {
         return tableView.cellForRow(at: IndexPath(row: 0, section: section))
     }
-
+    
     func getCellForName(name: String) -> UITableViewCell? {
         let index = tableTitles.index(of: name)!
         return getCellAt(section: Int(index))

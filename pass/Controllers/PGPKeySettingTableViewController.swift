@@ -14,7 +14,7 @@ class PGPKeySettingTableViewController: UITableViewController {
     @IBOutlet weak var pgpPublicKeyURLTextField: UITextField!
     @IBOutlet weak var pgpPrivateKeyURLTextField: UITextField!
     var pgpPassphrase: String?
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         tableView.rowHeight = UITableViewAutomaticDimension
@@ -22,7 +22,7 @@ class PGPKeySettingTableViewController: UITableViewController {
         pgpPrivateKeyURLTextField.text = Defaults[.pgpPrivateKeyURL]?.absoluteString
         pgpPassphrase = PasswordStore.shared.pgpKeyPassphrase
     }
-
+    
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
         if identifier == "savePGPKeySegue" {
             guard pgpPublicKeyURLTextField.text != nil else {
@@ -31,7 +31,7 @@ class PGPKeySettingTableViewController: UITableViewController {
             guard pgpPrivateKeyURLTextField.text != nil else {
                 return false
             }
-
+            
             guard URL(string: pgpPublicKeyURLTextField.text!) != nil else {
                 Utils.alert(title: "Cannot Save", message: "Please set Public Key URL first.", controller: self, completion: nil)
                 return false
@@ -40,7 +40,7 @@ class PGPKeySettingTableViewController: UITableViewController {
                 Utils.alert(title: "Cannot Save", message: "Please set Private Key URL first.", controller: self, completion: nil)
                 return false
             }
-
+            
             if URL(string: pgpPublicKeyURLTextField.text!)!.scheme! == "http" &&
                 URL(string: pgpPrivateKeyURLTextField.text!)!.scheme! == "http" {
                 Utils.alert(title: "Cannot Save Settings", message: "HTTP connection is not supported.", controller: self, completion: nil)
@@ -49,7 +49,7 @@ class PGPKeySettingTableViewController: UITableViewController {
         }
         return true
     }
-
+    
     @IBAction func save(_ sender: Any) {
         let alert = UIAlertController(title: "Passphrase", message: "Please fill in the passphrase of your PGP secret key.", preferredStyle: UIAlertControllerStyle.alert)
         alert.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.default, handler: {_ in
