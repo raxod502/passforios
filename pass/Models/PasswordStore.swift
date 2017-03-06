@@ -605,13 +605,12 @@ class PasswordStore {
         storeRepository = nil
     }
 
-    // return the number of discarded commits
-    func reset() throws -> Int {
+    func reset() throws {
         // get the remote origin/master branch
         guard let remoteBranches = try storeRepository?.remoteBranches(),
-              let index = remoteBranches.index(where: { $0.shortName == "master" })
-        else {
-            throw NSError(domain: "me.mssun.pass.error", code: 1, userInfo: [NSLocalizedDescriptionKey: "Cannot find remote branch origin/master."])
+            let index = remoteBranches.index(where: { $0.shortName == "master" })
+            else {
+                throw NSError(domain: "me.mssun.pass.error", code: 1, userInfo: [NSLocalizedDescriptionKey: "Cannot find remote branch origin/master."])
         }
         let remoteMasterBranch = remoteBranches[index]
         //print("remoteMasterBranch \(remoteMasterBranch)")
@@ -619,8 +618,9 @@ class PasswordStore {
         // get a list of local commits
         if let localCommits = try storeRepository?.localCommitsRelative(toRemoteBranch: remoteMasterBranch),
             localCommits.count > 0 {
-            // get the oldest local commit
-            guard let firstLocalCommit = localCommits.last,
+            //print("PasswordStore.reset: \(localCommits.count)")
+            // get the first local commit
+            guard let firstLocalCommit = localCommits.first,
                 firstLocalCommit.parents.count == 1,
                 let newHead = firstLocalCommit.parents.first else {
                     throw NSError(domain: "me.mssun.pass.error", code: 1, userInfo: [NSLocalizedDescriptionKey: "Cannot decide how to reset."])
@@ -629,9 +629,9 @@ class PasswordStore {
             self.updatePasswordEntityCoreData()
             NotificationCenter.default.post(Notification(name: Notification.Name("passwordUpdated")))
             self.setAllSynced()
-            return localCommits.count
         } else {
-            return 0  // no new commit
+            //print("PasswordStore.reset: no new commit")
+            return;  // no new commit
         }
     }
 }
