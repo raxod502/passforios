@@ -10,7 +10,7 @@ import UIKit
 import SwiftyUserDefaults
 
 class GeneralSettingsTableViewController: BasicStaticTableViewController {
-
+    
     let hideUnknownSwitch: UISwitch = {
         let uiSwitch = UISwitch()
         uiSwitch.onTintColor = Globals.blue
@@ -18,7 +18,7 @@ class GeneralSettingsTableViewController: BasicStaticTableViewController {
         uiSwitch.addTarget(self, action: #selector(hideUnknownSwitchAction(_:)), for: UIControlEvents.valueChanged)
         return uiSwitch
     }()
-
+    
     let hideOTPSwitch: UISwitch = {
         let uiSwitch = UISwitch()
         uiSwitch.onTintColor = Globals.blue
@@ -26,7 +26,7 @@ class GeneralSettingsTableViewController: BasicStaticTableViewController {
         uiSwitch.addTarget(self, action: #selector(hideOTPSwitchAction(_:)), for: UIControlEvents.valueChanged)
         return uiSwitch
     }()
-
+    
     let rememberPassphraseSwitch: UISwitch = {
         let uiSwitch = UISwitch()
         uiSwitch.onTintColor = Globals.blue
@@ -35,7 +35,7 @@ class GeneralSettingsTableViewController: BasicStaticTableViewController {
         uiSwitch.isOn = Defaults[.isRememberPassphraseOn]
         return uiSwitch
     }()
-
+    
     let showFolderSwitch: UISwitch = {
         let uiSwitch = UISwitch()
         uiSwitch.onTintColor = Globals.blue
@@ -50,7 +50,7 @@ class GeneralSettingsTableViewController: BasicStaticTableViewController {
         tableData = [
             // section 0
             [[.title: "About Repository", .action: "segue", .link: "showAboutRepositorySegue"],],
-
+            
             // section 1
             [
                 [.title: "Remember Passphrase", .action: "none",],
@@ -63,9 +63,9 @@ class GeneralSettingsTableViewController: BasicStaticTableViewController {
 
         ]
         super.viewDidLoad()
-
+        
     }
-
+    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell =  super.tableView(tableView, cellForRowAt: indexPath)
         switch cell.textLabel!.text! {
@@ -105,38 +105,38 @@ class GeneralSettingsTableViewController: BasicStaticTableViewController {
         }
         return cell
     }
-
+    
     func tapHideUnknownSwitchDetailButton(_ sender: Any?) {
         let alertMessage = "Only \"key: value\" format in additional fields is supported. Unsupported fields will be given \"unkown\" keys. Turn on this switch to hide unsupported fields."
         let alertTitle = "Hide Unknown Fields"
         Utils.alert(title: alertTitle, message: alertMessage, controller: self, completion: nil)
     }
-
+    
     func tapHideOTPSwitchDetailButton(_ sender: Any?) {
         let keywordsString = Password.otpKeywords.joined(separator: ",")
         let alertMessage = "Turn on this switch to hide the fields related to one time passwords (i.e., \(keywordsString))."
         let alertTitle = "Hide One Time Password Fields"
         Utils.alert(title: alertTitle, message: alertMessage, controller: self, completion: nil)
     }
-
+    
     func hideUnknownSwitchAction(_ sender: Any?) {
         Defaults[.isHideUnknownOn] = hideUnknownSwitch.isOn
     }
-
+    
     func hideOTPSwitchAction(_ sender: Any?) {
         Defaults[.isHideOTPOn] = hideOTPSwitch.isOn
     }
-
+    
     func rememberPassphraseSwitchAction(_ sender: Any?) {
         Defaults[.isRememberPassphraseOn] = rememberPassphraseSwitch.isOn
         if rememberPassphraseSwitch.isOn == false {
             PasswordStore.shared.pgpKeyPassphrase = nil
         }
     }
-
+    
     func showFolderSwitchAction(_ sender: Any?) {
         Defaults[.isShowFolderOn] = showFolderSwitch.isOn
         NotificationCenter.default.post(Notification(name: Notification.Name("passwordUpdated")))
     }
-
+    
 }
