@@ -307,7 +307,7 @@
 				TargetAttributes = {
 					DC917BD21E2E8231000FDF54 = {
 						CreatedOnToolsVersion = 8.2.1;
-						DevelopmentTeam = 4WDM8E95VU;
+						DevelopmentTeam = 8AD86Z45P8;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -583,7 +583,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 23;
 				DEFINES_MODULE = NO;
-				DEVELOPMENT_TEAM = 4WDM8E95VU;
+				DEVELOPMENT_TEAM = 8AD86Z45P8;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Carthage/Build/iOS",
@@ -598,7 +598,7 @@
 				);
 				INFOPLIST_FILE = pass/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = me.mssun.passforios;
+				PRODUCT_BUNDLE_IDENTIFIER = raxod502.passforios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/pass/Helpers/Objective-CBridgingHeader.h";
 				SWIFT_VERSION = 3.0;
@@ -615,7 +615,7 @@
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 23;
 				DEFINES_MODULE = NO;
-				DEVELOPMENT_TEAM = 4WDM8E95VU;
+				DEVELOPMENT_TEAM = 8AD86Z45P8;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/Carthage/Build/iOS",
@@ -630,7 +630,7 @@
 				);
 				INFOPLIST_FILE = pass/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = me.mssun.passforios;
+				PRODUCT_BUNDLE_IDENTIFIER = raxod502.passforios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/pass/Helpers/Objective-CBridgingHeader.h";
 				SWIFT_VERSION = 3.0;
