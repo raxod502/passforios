@@ -10,6 +10,7 @@ import Foundation
 import SwiftyUserDefaults
 import KeychainAccess
 import UIKit
+import SVProgressHUD
 
 class Utils {
     static func removeFileIfExists(atPath path: String) {
@@ -26,22 +27,21 @@ class Utils {
         removeFileIfExists(atPath: url.path)
     }
     
-    static func getLastUpdatedTimeString() -> String {
-        var lastUpdatedTimeString = ""
-        if let lastUpdatedTime = Defaults[.lastUpdatedTime] {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .short
-            lastUpdatedTimeString = formatter.string(from: lastUpdatedTime)
+    static func getLastSyncedTimeString() -> String {
+        guard let lastSyncedTime = Defaults[.lastSyncedTime] else {
+            return "Oops! Sync again?"
         }
-        return lastUpdatedTimeString
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: lastSyncedTime)
     }
     
     static func generatePassword(length: Int) -> String{
-        switch Defaults[.passwordGenerationMethod] {
+        switch Defaults[.passwordGeneratorFlavor] {
         case "Random":
             return randomString(length: length)
-        case "Keychain":
+        case "Apple":
             return Keychain.generatePassword()
         default:
             return randomString(length: length)
@@ -65,6 +65,7 @@ class Utils {
     }
     
     static func alert(title: String, message: String, controller: UIViewController, completion: (() -> Void)?) {
+        SVProgressHUD.dismiss()
         let alert = UIAlertController(title: title, message: message, preferredStyle: UIAlertControllerStyle.alert)
         alert.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.default, handler: nil))
         controller.present(alert, animated: true, completion: completion)
@@ -79,8 +80,17 @@ class Utils {
         Defaults.remove(.pgpPrivateKeyArmor)
         Defaults.remove(.pgpPrivateKeyURL)
         Defaults.remove(.pgpPublicKeyURL)
-        Defaults.remove(.pgpKeyID)
         Utils.removeKeychain(name: ".pgpKeyPassphrase")
+    }
+    
+    static func removeGitSSHKeys() {
+        removeFileIfExists(atPath: Globals.gitSSHPublicKeyPath)
+        removeFileIfExists(atPath: Globals.gitSSHPrivateKeyPath)
+        Defaults.remove(.gitSSHPublicKeyArmor)
+        Defaults.remove(.gitSSHPrivateKeyArmor)
+        Defaults.remove(.gitSSHPublicKeyURL)
+        Defaults.remove(.gitSSHPrivateKeyURL)
+        Utils.removeKeychain(name: ".gitSSHPrivateKeyPassphrase")
     }
     
     static func getPasswordFromKeychain(name: String) -> String? {
@@ -132,11 +142,16 @@ class Utils {
         for (index, element) in plainPassword.unicodeScalars.enumerated() {
             if NSCharacterSet.decimalDigits.contains(element) {
                 attributedPassword.addAttribute(NSForegroundColorAttributeName, value: Globals.red, range: NSRange(location: index, length: 1))
-            } else if NSCharacterSet.punctuationCharacters.contains(element) {
+            } else if !NSCharacterSet.letters.contains(element) {
                 attributedPassword.addAttribute(NSForegroundColorAttributeName, value: Globals.blue, range: NSRange(location: index, length: 1))
             }
         }
         return attributedPassword
+    }
+    static func initDefaultKeys() {
+        if Defaults[.passwordGeneratorFlavor] == "" {
+            Defaults[.passwordGeneratorFlavor] = "Random"
+        }
     }
 }
 

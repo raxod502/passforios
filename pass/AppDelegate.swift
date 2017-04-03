@@ -33,11 +33,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 self.perform(#selector(postSearchNotification), with: nil, afterDelay: 0.4)
             }
         }
+        Utils.initDefaultKeys()
         return true
     }
     
     func postSearchNotification() {
-        NotificationCenter.default.post(Notification(name: Notification.Name("search")))
+        NotificationCenter.default.post(name: .passwordSearch, object: nil)
     }
     
     func application(_ application: UIApplication, performActionFor shortcutItem: UIApplicationShortcutItem, completionHandler: @escaping (Bool) -> Void) {

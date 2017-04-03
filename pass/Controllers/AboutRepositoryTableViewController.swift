@@ -9,61 +9,72 @@
 import UIKit
 
 class AboutRepositoryTableViewController: BasicStaticTableViewController {
+    
+    private var needRefresh = false
+    private var indicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(activityIndicatorStyle: .gray)
+        return indicator
+    }()
+    private let passwordStore = PasswordStore.shared
 
     override func viewDidLoad() {
         navigationItemTitle = "About Repository"
         super.viewDidLoad()
-        let indicatorLable = UILabel(frame: CGRect(x: 0, y: 0, width: view.frame.width, height: 21))
-        indicatorLable.center = CGPoint(x: view.frame.size.width / 2, y: view.frame.size.height * 0.382 + 22)
-        indicatorLable.backgroundColor = UIColor.clear
-        indicatorLable.textColor = UIColor.gray
-        indicatorLable.text = "calculating"
-        indicatorLable.textAlignment = .center
-        indicatorLable.font = UIFont.preferredFont(forTextStyle: .footnote)
-        let indicator = UIActivityIndicatorView(activityIndicatorStyle: .gray)
-        indicator.center = CGPoint(x: view.frame.size.width / 2, y: view.frame.size.height * 0.382)
-        indicator.startAnimating()
+
+        indicator.center = CGPoint(x: view.bounds.midX, y: view.bounds.height * 0.382)
         tableView.addSubview(indicator)
-        tableView.addSubview(indicatorLable)
         
+        setTableData()
+        
+        // all password store updates (including erase, discard) will trigger the refresh
+        NotificationCenter.default.addObserver(self, selector: #selector(setNeedRefresh), name: .passwordStoreUpdated, object: nil)
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        if needRefresh {
+            setTableData()
+            needRefresh = false
+        }
+    }
+    
+    private func setTableData() {
+        
+        // clear current contents (if any)
+        self.tableData.removeAll(keepingCapacity: true)
+        self.tableView.reloadData()
+        indicator.startAnimating()
+        
+        // reload the table
         DispatchQueue.global(qos: .userInitiated).async {
             let numberFormatter = NumberFormatter()
             numberFormatter.numberStyle = NumberFormatter.Style.decimal
-            let fm = FileManager.default
             
-            let passwordEntities = PasswordStore.shared.fetchPasswordEntityCoreData(withDir: false)
-            let numberOfPasswords = numberFormatter.string(from: NSNumber(value: passwordEntities.count))!
+            let numberOfPasswordsString = numberFormatter.string(from: NSNumber(value: self.passwordStore.numberOfPasswords))!
+            let sizeOfRepositoryString = ByteCountFormatter.string(fromByteCount: Int64(self.passwordStore.sizeOfRepositoryByteCount), countStyle: ByteCountFormatter.CountStyle.file)
             
-            var size = UInt64(0)
-            do {
-                if fm.fileExists(atPath: PasswordStore.shared.storeURL.path) {
-                    size = try fm.allocatedSizeOfDirectoryAtURL(directoryURL: PasswordStore.shared.storeURL)
-                }
-            } catch {
-                print(error)
-            }
-            let sizeOfRepository = ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: ByteCountFormatter.CountStyle.file)
-            
-            let numberOfCommits = PasswordStore.shared.storeRepository?.numberOfCommits(inCurrentBranch: NSErrorPointer(nilLiteral: ())) ?? 0
+            let numberOfCommits = self.passwordStore.storeRepository?.numberOfCommits(inCurrentBranch: NSErrorPointer(nilLiteral: ())) ?? 0
             let numberOfCommitsString = numberFormatter.string(from: NSNumber(value: numberOfCommits))!
-
-
+            
             DispatchQueue.main.async { [weak self] in
                 let type = UITableViewCellAccessoryType.none
                 self?.tableData = [
                     // section 0
-                    [[.style: CellDataStyle.value1, .accessoryType: type, .title: "Passwords", .detailText: numberOfPasswords],
-                     [.style: CellDataStyle.value1, .accessoryType: type, .title: "Size", .detailText: sizeOfRepository],                     [.style: CellDataStyle.value1, .accessoryType: type, .title: "Unsynced", .detailText: String(PasswordStore.shared.getNumberOfUnsyncedPasswords())],
-                     [.style: CellDataStyle.value1, .accessoryType: type, .title: "Last Synced", .detailText: Utils.getLastUpdatedTimeString()],
+                    [[.style: CellDataStyle.value1, .accessoryType: type, .title: "Passwords", .detailText: numberOfPasswordsString],
+                     [.style: CellDataStyle.value1, .accessoryType: type, .title: "Size", .detailText: sizeOfRepositoryString],
+                     [.style: CellDataStyle.value1, .accessoryType: type, .title: "Local Commits", .detailText: String(self?.passwordStore.numberOfLocalCommits() ?? 0)],
+                     [.style: CellDataStyle.value1, .accessoryType: type, .title: "Last Synced", .detailText: Utils.getLastSyncedTimeString()],
                      [.style: CellDataStyle.value1, .accessoryType: type, .title: "Commits", .detailText: numberOfCommitsString],
                      [.title: "Commit Logs", .action: "segue", .link: "showCommitLogsSegue"],
                      ],
                 ]
-                indicator.stopAnimating()
-                indicatorLable.isHidden = true
+                self?.indicator.stopAnimating()
                 self?.tableView.reloadData()
             }
         }
     }
-
+    
+    func setNeedRefresh() {
+        needRefresh = true
+    }
 }

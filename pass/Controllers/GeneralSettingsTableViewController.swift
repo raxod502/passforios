@@ -10,7 +10,8 @@ import UIKit
 import SwiftyUserDefaults
 
 class GeneralSettingsTableViewController: BasicStaticTableViewController {
-    
+    let passwordStore = PasswordStore.shared
+
     let hideUnknownSwitch: UISwitch = {
         let uiSwitch = UISwitch()
         uiSwitch.onTintColor = Globals.blue
@@ -53,12 +54,17 @@ class GeneralSettingsTableViewController: BasicStaticTableViewController {
             
             // section 1
             [
+                [.title: "Password Generator Flavor", .action: "none", .style: CellDataStyle.value1],
+            ],
+            
+            // section 2
+            [
                 [.title: "Remember Passphrase", .action: "none",],
             ],
             [
                 [.title: "Show Folder", .action: "none",],
                 [.title: "Hide Unknown Fields", .action: "none",],
-                [.title: "Hide One Time Password Fields", .action: "none",],
+                [.title: "Hide OTP Fields", .action: "none",],
             ],
 
         ]
@@ -81,7 +87,7 @@ class GeneralSettingsTableViewController: BasicStaticTableViewController {
             cell.accessoryView = accessoryView
             cell.selectionStyle = .none
             hideUnknownSwitch.isOn = Defaults[.isHideUnknownOn]
-        case "Hide One Time Password Fields":
+        case "Hide OTP Fields":
             cell.accessoryType = .none
             let detailButton = UIButton(type: .detailDisclosure)
             hideOTPSwitch.frame = CGRect(x: detailButton.bounds.width+10, y: 0, width: hideOTPSwitch.bounds.width, height: hideOTPSwitch.bounds.height)
@@ -101,13 +107,55 @@ class GeneralSettingsTableViewController: BasicStaticTableViewController {
             cell.accessoryType = .none
             cell.selectionStyle = .none
             cell.accessoryView = showFolderSwitch
+        case "Password Generator Flavor":
+            cell.accessoryType = .disclosureIndicator
+            cell.detailTextLabel?.text = Defaults[.passwordGeneratorFlavor]
         default: break
         }
         return cell
     }
     
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        super.tableView(tableView, didSelectRowAt: indexPath)
+        let cell = tableView.cellForRow(at: indexPath)!
+        if cell.textLabel!.text! == "Password Generator Flavor" {
+            tableView.deselectRow(at: indexPath, animated: true)
+            showPasswordGeneratorFlavorActionSheet(sourceCell: cell)
+        }
+    }
+    
+    func showPasswordGeneratorFlavorActionSheet(sourceCell: UITableViewCell) {
+        let optionMenu = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        var randomFlavorActionTitle = ""
+        var appleFlavorActionTitle = ""
+        if Defaults[.passwordGeneratorFlavor] == "Random" {
+            randomFlavorActionTitle = "✓ Random String"
+            appleFlavorActionTitle = "Apple's Keychain Style"
+        } else {
+            randomFlavorActionTitle = "Random String"
+            appleFlavorActionTitle = "✓ Apple's Keychain Style"
+        }
+        let randomFlavorAction = UIAlertAction(title: randomFlavorActionTitle, style: .default) { _ in
+            Defaults[.passwordGeneratorFlavor] = "Random"
+            sourceCell.detailTextLabel?.text = "Random"
+        }
+        
+        let appleFlavorAction = UIAlertAction(title: appleFlavorActionTitle, style: .default) { _ in
+            Defaults[.passwordGeneratorFlavor] = "Apple"
+            sourceCell.detailTextLabel?.text = "Apple"
+        }
+        
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
+        optionMenu.addAction(randomFlavorAction)
+        optionMenu.addAction(appleFlavorAction)
+        optionMenu.addAction(cancelAction)
+        optionMenu.popoverPresentationController?.sourceView = sourceCell
+        optionMenu.popoverPresentationController?.sourceRect = sourceCell.bounds
+        self.present(optionMenu, animated: true, completion: nil)
+    }
+    
     func tapHideUnknownSwitchDetailButton(_ sender: Any?) {
-        let alertMessage = "Only \"key: value\" format in additional fields is supported. Unsupported fields will be given \"unkown\" keys. Turn on this switch to hide unsupported fields."
+        let alertMessage = "Only \"key: value\" format in additional fields is supported. Unsupported fields will be given \"unknown\" keys. Turn on this switch to hide unsupported fields."
         let alertTitle = "Hide Unknown Fields"
         Utils.alert(title: alertTitle, message: alertMessage, controller: self, completion: nil)
     }
@@ -121,22 +169,24 @@ class GeneralSettingsTableViewController: BasicStaticTableViewController {
     
     func hideUnknownSwitchAction(_ sender: Any?) {
         Defaults[.isHideUnknownOn] = hideUnknownSwitch.isOn
+        NotificationCenter.default.post(name: .passwordDetailDisplaySettingChanged, object: nil)
     }
     
     func hideOTPSwitchAction(_ sender: Any?) {
         Defaults[.isHideOTPOn] = hideOTPSwitch.isOn
+        NotificationCenter.default.post(name: .passwordDetailDisplaySettingChanged, object: nil)
     }
     
     func rememberPassphraseSwitchAction(_ sender: Any?) {
         Defaults[.isRememberPassphraseOn] = rememberPassphraseSwitch.isOn
         if rememberPassphraseSwitch.isOn == false {
-            PasswordStore.shared.pgpKeyPassphrase = nil
+            passwordStore.pgpKeyPassphrase = nil
         }
     }
     
     func showFolderSwitchAction(_ sender: Any?) {
         Defaults[.isShowFolderOn] = showFolderSwitch.isOn
-        NotificationCenter.default.post(Notification(name: Notification.Name("passwordUpdated")))
+        NotificationCenter.default.post(name: .passwordDisplaySettingChanged, object: nil)
     }
     
 }

@@ -11,10 +11,11 @@ import ObjectiveGit
 
 class CommitLogsTableViewController: UITableViewController {
     var commits: [GTCommit] = []
+    let passwordStore = PasswordStore.shared
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        commits = PasswordStore.shared.getRecentCommits(count: 20)
+        commits = passwordStore.getRecentCommits(count: 20)
         navigationItem.title = "Recent Commit Logs"
         navigationController!.navigationBar.topItem!.title = "About"
     }
@@ -29,8 +30,10 @@ class CommitLogsTableViewController: UITableViewController {
         formatter.dateStyle = DateFormatter.Style.short
         formatter.timeStyle = .none
         let dateString = formatter.string(from: commits[indexPath.row].commitDate)
-        cell.textLabel?.text = dateString
-        cell.detailTextLabel?.text = commits[indexPath.row].message
+        let dateLabel = cell.viewWithTag(101) as! UILabel
+        let messageLabel = cell.viewWithTag(102) as! UILabel
+        dateLabel.text = dateString
+        messageLabel.text = commits[indexPath.row].message
         return cell
     }
 }

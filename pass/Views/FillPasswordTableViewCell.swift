@@ -8,12 +8,27 @@
 
 import UIKit
 
+protocol FillPasswordTableViewCellDelegate {
+    func generateAndCopyPassword()
+    func showHidePasswordSettings()
+}
+
 class FillPasswordTableViewCell: ContentTableViewCell {
 
     @IBOutlet weak var contentTextField: UITextField!
+    var delegate: FillPasswordTableViewCellDelegate?
+    
+    @IBOutlet weak var settingButton: UIButton!
+    @IBOutlet weak var generateButton: UIButton!
+    
     override func awakeFromNib() {
         super.awakeFromNib()
         // Initialization code
+        contentTextField.font = UIFont(name: Globals.passwordFonts, size: (contentTextField.font?.pointSize)!)
+        
+        // Force aspect ratio of button images
+        settingButton.imageView?.contentMode = .scaleAspectFit
+        generateButton.imageView?.contentMode = .scaleAspectFit
     }
 
     override func setSelected(_ selected: Bool, animated: Bool) {
@@ -23,16 +38,23 @@ class FillPasswordTableViewCell: ContentTableViewCell {
     }
     
     @IBAction func generatePassword(_ sender: UIButton) {
-        let plainPassword = Utils.randomString(length: 16)
-        contentTextField.attributedText = Utils.attributedPassword(plainPassword: plainPassword)
-        Utils.copyToPasteboard(textToCopy: plainPassword)
+        self.delegate?.generateAndCopyPassword()
+    }
+    
+    @IBAction func showHidePasswordSettings() {
+        self.delegate?.showHidePasswordSettings()
+    }
+    
+    // re-color
+    @IBAction func textFieldDidChange(_ sender: UITextField) {
+        contentTextField.attributedText = Utils.attributedPassword(plainPassword: sender.text ?? "")
     }
     
     override func getContent() -> String? {
         return contentTextField.attributedText?.string
     }
     
-    override func setContent(content: String) {
-        contentTextField.attributedText = Utils.attributedPassword(plainPassword: content)
+    override func setContent(content: String?) {
+        contentTextField.attributedText = Utils.attributedPassword(plainPassword: content ?? "")
     }
 }

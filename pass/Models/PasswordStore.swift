@@ -27,9 +27,9 @@ struct GitCredential {
             var credential: GTCredential? = nil
             switch self.credential {
             case let .http(userName, password):
-                print(Defaults[.gitRepositoryPasswordAttempts])
+                print(Defaults[.gitPasswordAttempts])
                 var newPassword: String = password
-                if Defaults[.gitRepositoryPasswordAttempts] != 0 {
+                if Defaults[.gitPasswordAttempts] != 0 {
                     let sem = DispatchSemaphore(value: 0)
                     DispatchQueue.main.async {
                         SVProgressHUD.dismiss()
@@ -40,15 +40,15 @@ struct GitCredential {
                             let alert = UIAlertController(title: "Password", message: "Please fill in the password of your Git account.", preferredStyle: UIAlertControllerStyle.alert)
                             alert.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.default, handler: {_ in
                                 newPassword = alert.textFields!.first!.text!
-                                PasswordStore.shared.gitRepositoryPassword = newPassword
+                                PasswordStore.shared.gitPassword = newPassword
                                 sem.signal()
                             }))
                             alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in
-                                Defaults[.gitRepositoryPasswordAttempts] = -1
+                                Defaults[.gitPasswordAttempts] = -1
                                 sem.signal()
                             })
                             alert.addTextField(configurationHandler: {(textField: UITextField!) in
-                                textField.text = PasswordStore.shared.gitRepositoryPassword
+                                textField.text = PasswordStore.shared.gitPassword
                                 textField.isSecureTextEntry = true
                             })
                                 topController.present(alert, animated: true, completion: nil)
@@ -56,12 +56,12 @@ struct GitCredential {
                     }
                     let _ = sem.wait(timeout: DispatchTime.distantFuture)
                 }
-                if Defaults[.gitRepositoryPasswordAttempts] == -1 {
-                    Defaults[.gitRepositoryPasswordAttempts] = 0
+                if Defaults[.gitPasswordAttempts] == -1 {
+                    Defaults[.gitPasswordAttempts] = 0
                     return nil
                 }
-                Defaults[.gitRepositoryPasswordAttempts] += 1
-                PasswordStore.shared.gitRepositoryPassword = newPassword
+                Defaults[.gitPasswordAttempts] += 1
+                PasswordStore.shared.gitPassword = newPassword
                 credential = try? GTCredential(userName: userName, password: newPassword)
             case let .ssh(userName, password, publicKeyFile, privateKeyFile, passwordNotSetCallback):
 
@@ -76,7 +76,7 @@ struct GitCredential {
                 }
 
                 // Save password for the future
-                Utils.addPasswordToKeychain(name: "gitRepositorySSHPrivateKeyPassphrase", password: newPassword!)
+                Utils.addPasswordToKeychain(name: "gitSSHPrivateKeyPassphrase", password: newPassword!)
 
                 // nil is expected in case of empty password
                 if newPassword == "" {
@@ -93,11 +93,28 @@ struct GitCredential {
 
 class PasswordStore {
     static let shared = PasswordStore()
-    
     let storeURL = URL(fileURLWithPath: "\(Globals.repositoryPath)")
     let tempStoreURL = URL(fileURLWithPath: "\(Globals.repositoryPath)-temp")
+    
     var storeRepository: GTRepository?
     var gitCredential: GitCredential?
+    var pgpKeyID: String?
+    var publicKey: PGPKey? {
+        didSet {
+            if publicKey != nil {
+                pgpKeyID = publicKey!.keyID!.shortKeyString
+            } else {
+                pgpKeyID = nil
+            }
+        }
+    }
+    var privateKey: PGPKey?
+    
+    var gitSignatureForNow: GTSignature {
+        get {
+            return GTSignature(name: Defaults[.gitUsername]!, email: Defaults[.gitUsername]!+"@passforios", time: Date())!
+        }
+    }
     
     let pgp: ObjectivePGP = ObjectivePGP()
     
@@ -109,16 +126,42 @@ class PasswordStore {
             return Utils.getPasswordFromKeychain(name: "pgpKeyPassphrase")
         }
     }
-    var gitRepositoryPassword: String? {
+    var gitPassword: String? {
         set {
-            Utils.addPasswordToKeychain(name: "gitRepositoryPassword", password: newValue)
+            Utils.addPasswordToKeychain(name: "gitPassword", password: newValue)
         }
         get {
-            return Utils.getPasswordFromKeychain(name: "gitRepositoryPassword")
+            return Utils.getPasswordFromKeychain(name: "gitPassword")
+        }
+    }
+    
+    var gitSSHPrivateKeyPassphrase: String? {
+        set {
+            Utils.addPasswordToKeychain(name: "gitSSHPrivateKeyPassphrase", password: newValue)
+        }
+        get {
+            return Utils.getPasswordFromKeychain(name: "gitSSHPrivateKeyPassphrase") ?? ""
         }
     }
     
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    
+    var numberOfPasswords : Int {
+        return self.fetchPasswordEntityCoreData(withDir: false).count 
+    }
+    
+    var sizeOfRepositoryByteCount : UInt64 {
+        let fm = FileManager.default
+        var size = UInt64(0)
+        do {
+            if fm.fileExists(atPath: self.storeURL.path) {
+                size = try fm.allocatedSizeOfDirectoryAtURL(directoryURL: self.storeURL)
+            }
+        } catch {
+            print(error)
+        }
+        return size
+    }
 
     
     private init() {
@@ -129,51 +172,112 @@ class PasswordStore {
         } catch {
             print(error)
         }
-        if Defaults[.pgpKeyID] != nil {
-            pgp.importKeys(fromFile: Globals.pgpPublicKeyPath, allowDuplicates: false)
-            pgp.importKeys(fromFile: Globals.pgpPrivateKeyPath, allowDuplicates: false)
-
-        }
-        if Defaults[.gitRepositoryAuthenticationMethod] == "Password" {
-            gitCredential = GitCredential(credential: GitCredential.Credential.http(userName: Defaults[.gitRepositoryUsername]!, password: Utils.getPasswordFromKeychain(name: "gitRepositoryPassword") ?? ""))
-        } else if Defaults[.gitRepositoryAuthenticationMethod] == "SSH Key"{
+        initPGPKeys()
+        initGitCredential()
+    }
+    
+    enum SSHKeyType {
+        case `public`, secret
+    }
+    
+    public func initGitCredential() {
+        if Defaults[.gitAuthenticationMethod] == "Password" {
+            gitCredential = GitCredential(credential: GitCredential.Credential.http(userName: Defaults[.gitUsername]!, password: Utils.getPasswordFromKeychain(name: "gitPassword") ?? ""))
+        } else if Defaults[.gitAuthenticationMethod] == "SSH Key"{
             gitCredential = GitCredential(
                 credential: GitCredential.Credential.ssh(
-                    userName: Defaults[.gitRepositoryUsername]!,
-                    password: Utils.getPasswordFromKeychain(name: "gitRepositorySSHPrivateKeyPassphrase") ?? "",
-                    publicKeyFile: Globals.sshPublicKeyURL,
-                    privateKeyFile: Globals.sshPrivateKeyURL,
+                    userName: Defaults[.gitUsername]!,
+                    password: gitSSHPrivateKeyPassphrase ?? "",
+                    publicKeyFile: Globals.gitSSHPublicKeyURL,
+                    privateKeyFile: Globals.gitSSHPrivateKeyURL,
                     passwordNotSetCallback: nil
                 )
             )
         } else {
             gitCredential = nil
         }
-        
     }
     
-    func initPGP(pgpPublicKeyLocalPath: String, pgpPrivateKeyLocalPath: String) throws {
-        let pgpPublicKeyData = NSData(contentsOfFile: pgpPublicKeyLocalPath)! as Data
-        if pgpPublicKeyData.count == 0 {
-            throw NSError(domain: "me.mssun.pass.error", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cannot import public key."])
+    public func initGitSSHKey(with armorKey: String, _ keyType: SSHKeyType) throws {
+        var keyPath = ""
+        switch keyType {
+        case .public:
+            keyPath = Globals.gitSSHPublicKeyPath
+        case .secret:
+            keyPath = Globals.gitSSHPrivateKeyPath
         }
-        pgp.importKeys(from: pgpPublicKeyData, allowDuplicates: false)
-        if pgp.getKeysOf(.public).count == 0 {
-            throw NSError(domain: "me.mssun.pass.error", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cannot import public key."])
+        
+        try armorKey.write(toFile: keyPath, atomically: true, encoding: .ascii)
+    }
+    
+    public func initPGPKeys() {
+        do {
+            try initPGPKey(.public)
+            try initPGPKey(.secret)
+        } catch {
+            print(error)
         }
-        let pgpPrivateKeyData = NSData(contentsOfFile: pgpPrivateKeyLocalPath)! as Data
-        if pgpPrivateKeyData.count == 0 {
-            throw NSError(domain: "me.mssun.pass.error", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cannot import public key."])
+    }
+    
+    public func initPGPKey(_ keyType: PGPKeyType) throws {
+        var keyPath = ""
+        switch keyType {
+        case .public:
+            keyPath = Globals.pgpPublicKeyPath
+        case .secret:
+            keyPath = Globals.pgpPrivateKeyPath
+        default:
+            throw NSError(domain: "me.mssun.pass.error", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cannot import key."])
         }
-        pgp.importKeys(from: pgpPrivateKeyData, allowDuplicates: false)
-        if pgp.getKeysOf(.secret).count == 0 {
-            throw NSError(domain: "me.mssun.pass.error", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cannot import seceret key."])
+        
+        if let key = importKey(from: keyPath) {
+            switch keyType {
+            case .public:
+                self.publicKey = key
+            case .secret:
+                self.privateKey = key
+            default:
+                throw NSError(domain: "me.mssun.pass.error", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cannot import key."])
+            }
+        } else {
+            throw NSError(domain: "me.mssun.pass.error", code: 2, userInfo: [NSLocalizedDescriptionKey: "Cannot import key."])
         }
-        let key: PGPKey = getPgpPrivateKey()
-        Defaults[.pgpKeyID] = key.keyID!.shortKeyString
-        if let gpgUser = key.users[0] as? PGPUser {
-            Defaults[.pgpKeyUserID] = gpgUser.userID
+    }
+    
+    public func initPGPKey(from url: URL, keyType: PGPKeyType) throws{
+        var pgpKeyLocalPath = ""
+        if keyType == .public {
+            pgpKeyLocalPath = Globals.pgpPublicKeyPath
+        } else {
+            pgpKeyLocalPath = Globals.pgpPrivateKeyPath
         }
+        let pgpKeyData = try Data(contentsOf: url)
+        try pgpKeyData.write(to: URL(fileURLWithPath: pgpKeyLocalPath), options: .atomic)
+        try initPGPKey(keyType)
+    }
+    
+    public func initPGPKey(with armorKey: String, keyType: PGPKeyType) throws {
+        var pgpKeyLocalPath = ""
+        if keyType == .public {
+            pgpKeyLocalPath = Globals.pgpPublicKeyPath
+        } else {
+            pgpKeyLocalPath = Globals.pgpPrivateKeyPath
+        }
+        try armorKey.write(toFile: pgpKeyLocalPath, atomically: true, encoding: .ascii)
+        try initPGPKey(keyType)
+    }
+    
+    
+    private func importKey(from keyPath: String) -> PGPKey? {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: keyPath) {
+            if let keys = pgp.importKeys(fromFile: keyPath, allowDuplicates: false) as? [PGPKey] {
+                if keys.count > 0 {
+                    return keys[0]
+                }
+            }
+        }
+        return nil
     }
 
     func getPgpPrivateKey() -> PGPKey {
@@ -202,20 +306,6 @@ class PasswordStore {
         return true
     }
     
-    func initPGP(pgpPublicKeyURL: URL, pgpPublicKeyLocalPath: String, pgpPrivateKeyURL: URL, pgpPrivateKeyLocalPath: String) throws {
-        let pgpPublicData = try Data(contentsOf: pgpPublicKeyURL)
-        try pgpPublicData.write(to: URL(fileURLWithPath: pgpPublicKeyLocalPath), options: .atomic)
-        let pgpPrivateData = try Data(contentsOf: pgpPrivateKeyURL)
-        try pgpPrivateData.write(to: URL(fileURLWithPath: pgpPrivateKeyLocalPath), options: .atomic)
-        try initPGP(pgpPublicKeyLocalPath: pgpPublicKeyLocalPath, pgpPrivateKeyLocalPath: pgpPrivateKeyLocalPath)
-    }
-    
-    func initPGP(pgpPublicKeyArmor: String, pgpPublicKeyLocalPath: String, pgpPrivateKeyArmor: String, pgpPrivateKeyLocalPath: String) throws {
-        try pgpPublicKeyArmor.write(toFile: pgpPublicKeyLocalPath, atomically: true, encoding: .ascii)
-        try pgpPrivateKeyArmor.write(toFile: pgpPrivateKeyLocalPath, atomically: true, encoding: .ascii)
-        try initPGP(pgpPublicKeyLocalPath: pgpPublicKeyLocalPath, pgpPrivateKeyLocalPath: pgpPrivateKeyLocalPath)
-    }
-    
     func cloneRepository(remoteRepoURL: URL,
                          credential: GitCredential,
                          transferProgressBlock: @escaping (UnsafePointer<git_transfer_progress>, UnsafeMutablePointer<ObjCBool>) -> Void,
@@ -240,6 +330,11 @@ class PasswordStore {
         }
         storeRepository = try GTRepository(url: storeURL)
         gitCredential = credential
+        Defaults[.lastSyncedTime] = Date()
+        DispatchQueue.main.async {
+            self.updatePasswordEntityCoreData()
+            NotificationCenter.default.post(name: .passwordStoreUpdated, object: nil)
+        }
     }
     
     func pullRepository(transferProgressBlock: @escaping (UnsafePointer<git_transfer_progress>, UnsafeMutablePointer<ObjCBool>) -> Void) throws {
@@ -252,11 +347,15 @@ class PasswordStore {
         ]
         let remote = try GTRemote(name: "origin", in: storeRepository!)
         try storeRepository?.pull((storeRepository?.currentBranch())!, from: remote, withOptions: options, progress: transferProgressBlock)
+        Defaults[.lastSyncedTime] = Date()
+        DispatchQueue.main.async {
+            self.setAllSynced()
+            self.updatePasswordEntityCoreData()
+            NotificationCenter.default.post(name: .passwordStoreUpdated, object: nil)
+        }
     }
     
-    
-    
-    func updatePasswordEntityCoreData() {
+    private func updatePasswordEntityCoreData() {
         deleteCoreData(entityName: "PasswordEntity")
         let fm = FileManager.default
         do {
@@ -312,6 +411,9 @@ class PasswordStore {
     }
     
     func getRecentCommits(count: Int) -> [GTCommit] {
+        guard storeRepository != nil else {
+            return []
+        }
         var commits = [GTCommit]()
         do {
             let enumerator = try GTEnumerator(repository: storeRepository!)
@@ -415,50 +517,18 @@ class PasswordStore {
     func updateRemoteRepo() {
     }
     
-    
-    func addEntryToGTTree(fileData: Data, filename: String) -> GTTree {
-        do {
-            let head = try storeRepository!.headReference()
-            let branch = GTBranch(reference: head, repository: storeRepository!)
-            let headCommit = try branch?.targetCommit()
-            
-            let treeBulider = try GTTreeBuilder(tree: headCommit?.tree, repository: storeRepository!)
-            try treeBulider.addEntry(with: fileData, fileName: filename, fileMode: GTFileMode.blob)
-            
-            let newTree = try treeBulider.writeTree()
-            return newTree
-        } catch {
-            fatalError("Failed to add entries to GTTree: \(error)")
-
-        }
-    }
-    
-    func removeEntryFromGTTree(filename: String) -> GTTree {
-        do {
-            let head = try storeRepository!.headReference()
-            let branch = GTBranch(reference: head, repository: storeRepository!)
-            let headCommit = try branch?.targetCommit()
-            
-            let treeBulider = try GTTreeBuilder(tree: headCommit?.tree, repository: storeRepository!)
-            try treeBulider.removeEntry(withFileName: filename)
-            
-            let newTree = try treeBulider.writeTree()
-            return newTree
-        } catch {
-            fatalError("Failed to remove entries to GTTree: \(error)")
-            
-        }
-    }
-    
     func createAddCommitInRepository(message: String, fileData: Data, filename: String, progressBlock: (_ progress: Float) -> Void) -> GTCommit? {
         do {
-            let newTree = addEntryToGTTree(fileData: fileData, filename: filename)
+            try storeRepository?.index().add(fileData, withPath: filename)
+            try storeRepository?.index().write()
+            let newTree = try storeRepository!.index().writeTree()
             let headReference = try storeRepository!.headReference()
             let commitEnum = try GTEnumerator(repository: storeRepository!)
             try commitEnum.pushSHA(headReference.targetOID.sha!)
             let parent = commitEnum.nextObject() as! GTCommit
             progressBlock(0.5)
-            let commit = try storeRepository!.createCommit(with: newTree, message: message, parents: [parent], updatingReferenceNamed: headReference.name)
+            let signature = gitSignatureForNow
+            let commit = try storeRepository!.createCommit(with: newTree, message: message, author: signature, committer: signature, parents: [parent], updatingReferenceNamed: headReference.name)
             progressBlock(0.7)
             return commit
         } catch {
@@ -467,16 +537,17 @@ class PasswordStore {
         return nil
     }
     
-    func createRemoveCommitInRepository(message: String, filename: String, progressBlock: (_ progress: Float) -> Void) -> GTCommit? {
+    func createRemoveCommitInRepository(message: String, path: String) -> GTCommit? {
         do {
-            let newTree = removeEntryFromGTTree(filename: filename)
+            try storeRepository?.index().removeFile(path)
+            try storeRepository?.index().write()
+            let newTree = try storeRepository!.index().writeTree()
             let headReference = try storeRepository!.headReference()
             let commitEnum = try GTEnumerator(repository: storeRepository!)
             try commitEnum.pushSHA(headReference.targetOID.sha!)
             let parent = commitEnum.nextObject() as! GTCommit
-            progressBlock(0.5)
-            let commit = try storeRepository!.createCommit(with: newTree, message: message, parents: [parent], updatingReferenceNamed: headReference.name)
-            progressBlock(0.7)
+            let signature = gitSignatureForNow
+            let commit = try storeRepository!.createCommit(with: newTree, message: message, author: signature, committer: signature, parents: [parent], updatingReferenceNamed: headReference.name)
             return commit
         } catch {
             print(error)
@@ -524,23 +595,39 @@ class PasswordStore {
             passwordEntity.isDir = false
             try context.save()
             print(saveURL.path)
-            let _ = createAddCommitInRepository(message: "Add new password by pass for iOS", fileData: encryptedData, filename: saveURL.lastPathComponent, progressBlock: progressBlock)
+            let _ = createAddCommitInRepository(message: "Add password for \(passwordEntity.nameWithCategory) to store using Pass for iOS.", fileData: encryptedData, filename: saveURL.lastPathComponent, progressBlock: progressBlock)
             progressBlock(1.0)
+            NotificationCenter.default.post(name: .passwordStoreUpdated, object: nil)
         } catch {
             print(error)
         }
     }
     
     func update(passwordEntity: PasswordEntity, password: Password, progressBlock: (_ progress: Float) -> Void) {
+        progressBlock(0.0)
         do {
             let encryptedData = try passwordEntity.encrypt(password: password)
             let saveURL = storeURL.appendingPathComponent(passwordEntity.path!)
             try encryptedData.write(to: saveURL)
             progressBlock(0.3)
-            let _ = createAddCommitInRepository(message: "Update password by pass for iOS", fileData: encryptedData, filename: saveURL.lastPathComponent, progressBlock: progressBlock)
+            let _ = createAddCommitInRepository(message: "Edit password for \(passwordEntity.nameWithCategory) using Pass for iOS.", fileData: encryptedData, filename: saveURL.lastPathComponent, progressBlock: progressBlock)
+            progressBlock(1.0)
+            NotificationCenter.default.post(name: .passwordStoreUpdated, object: nil)
         } catch {
             print(error)
         }
+    }
+    
+    public func delete(passwordEntity: PasswordEntity) {
+        Utils.removeFileIfExists(at: storeURL.appendingPathComponent(passwordEntity.path!))
+        let _ = createRemoveCommitInRepository(message: "Remove \(passwordEntity.nameWithCategory) from store using Pass for iOS", path: passwordEntity.path!)
+        context.delete(passwordEntity)
+        do {
+            try context.save()
+        } catch {
+            fatalError("Failed to delete a PasswordEntity: \(error)")
+        }
+        NotificationCenter.default.post(name: .passwordStoreUpdated, object: nil)
     }
     
     func saveUpdated(passwordEntity: PasswordEntity) {
@@ -588,13 +675,15 @@ class PasswordStore {
     }
     
     func erase() {
+        publicKey = nil
+        privateKey = nil
         Utils.removeFileIfExists(at: storeURL)
         Utils.removeFileIfExists(at: tempStoreURL)
 
         Utils.removeFileIfExists(atPath: Globals.pgpPublicKeyPath)
         Utils.removeFileIfExists(atPath: Globals.pgpPrivateKeyPath)
-        Utils.removeFileIfExists(at: Globals.sshPrivateKeyURL)
-        Utils.removeFileIfExists(at: Globals.sshPublicKeyURL)
+        Utils.removeFileIfExists(atPath: Globals.gitSSHPublicKeyPath)
+        Utils.removeFileIfExists(atPath: Globals.gitSSHPrivateKeyPath)
         
         Utils.removeAllKeychain()
 
@@ -603,10 +692,49 @@ class PasswordStore {
         
         Defaults.removeAll()
         storeRepository = nil
+        
+        NotificationCenter.default.post(name: .passwordStoreUpdated, object: nil)
+        NotificationCenter.default.post(name: .passwordStoreErased, object: nil)
     }
     
     // return the number of discarded commits 
     func reset() throws -> Int {
+        // get a list of local commits
+        if let localCommits = try getLocalCommits(),
+            localCommits.count > 0 {
+            // get the oldest local commit
+            guard let firstLocalCommit = localCommits.last,
+                firstLocalCommit.parents.count == 1,
+                let newHead = firstLocalCommit.parents.first else {
+                    throw NSError(domain: "me.mssun.pass.error", code: 1, userInfo: [NSLocalizedDescriptionKey: "Cannot decide how to reset."])
+            }
+            try self.storeRepository?.reset(to: newHead, resetType: GTRepositoryResetType.hard)
+            self.setAllSynced()
+            self.updatePasswordEntityCoreData()
+            Defaults[.lastSyncedTime] = nil
+            
+            NotificationCenter.default.post(name: .passwordStoreUpdated, object: nil)
+            NotificationCenter.default.post(name: .passwordStoreChangeDiscarded, object: nil)
+            return localCommits.count
+        } else {
+            return 0  // no new commit
+        }
+    }
+    
+    func numberOfLocalCommits() -> Int {
+        do {
+            if let localCommits = try getLocalCommits() {
+                return localCommits.count
+            } else {
+                return 0
+            }
+        } catch {
+            print(error)
+        }
+        return 0
+    }
+    
+    private func getLocalCommits() throws -> [GTCommit]? {
         // get the remote origin/master branch
         guard let remoteBranches = try storeRepository?.remoteBranches(),
             let index = remoteBranches.index(where: { $0.shortName == "master" })
@@ -617,21 +745,6 @@ class PasswordStore {
         //print("remoteMasterBranch \(remoteMasterBranch)")
         
         // get a list of local commits
-        if let localCommits = try storeRepository?.localCommitsRelative(toRemoteBranch: remoteMasterBranch),
-            localCommits.count > 0 {
-            // get the oldest local commit
-            guard let firstLocalCommit = localCommits.last,
-                firstLocalCommit.parents.count == 1,
-                let newHead = firstLocalCommit.parents.first else {
-                    throw NSError(domain: "me.mssun.pass.error", code: 1, userInfo: [NSLocalizedDescriptionKey: "Cannot decide how to reset."])
-            }
-            try self.storeRepository?.reset(to: newHead, resetType: GTRepositoryResetType.hard)
-            self.updatePasswordEntityCoreData()
-            NotificationCenter.default.post(Notification(name: Notification.Name("passwordUpdated")))
-            self.setAllSynced()
-            return localCommits.count
-        } else {
-            return 0  // no new commit
-        }
+        return try storeRepository?.localCommitsRelative(toRemoteBranch: remoteMasterBranch)
     }
 }

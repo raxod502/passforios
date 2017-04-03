@@ -10,6 +10,17 @@ import Foundation
 import SwiftyUserDefaults
 
 extension PasswordEntity {
+    
+    var nameWithCategory: String {
+        get {
+            if let p = path, p.hasSuffix(".gpg") {
+                return p.substring(to: p.index(p.endIndex, offsetBy: -4))
+            } else {
+                return ""
+            }
+        }
+    }
+    
     func decrypt(passphrase: String) throws -> Password? {
         var password: Password?
         let encryptedDataPath = URL(fileURLWithPath: "\(Globals.repositoryPath)/\(path!)")
@@ -24,7 +35,18 @@ extension PasswordEntity {
         name = password.name
         let plainData = password.getPlainData()
         let pgp = PasswordStore.shared.pgp
-        let encryptedData = try pgp.encryptData(plainData, usingPublicKey: pgp.getKeysOf(.public)[0], armored: false)
+        let encryptedData = try pgp.encryptData(plainData, usingPublicKey: pgp.getKeysOf(.public)[0], armored: Defaults[.encryptInArmored])
         return encryptedData
+    }
+    
+    func getCategoryText() -> String {
+        var parentEntity = parent
+        var passwordCategoryArray: [String] = []
+        while parentEntity != nil {
+            passwordCategoryArray.append(parentEntity!.name!)
+            parentEntity = parentEntity!.parent
+        }
+        passwordCategoryArray.reverse()
+        return passwordCategoryArray.joined(separator: " > ")
     }
 }

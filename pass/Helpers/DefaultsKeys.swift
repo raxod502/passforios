@@ -10,24 +10,26 @@ import Foundation
 import SwiftyUserDefaults
 
 extension DefaultsKeys {
-//    static let pgpKeyURL = DefaultsKey<URL?>("pgpKeyURL")
     static let pgpKeySource = DefaultsKey<String?>("pgpKeySource")
     static let pgpPublicKeyURL = DefaultsKey<URL?>("pgpPublicKeyURL")
     static let pgpPrivateKeyURL = DefaultsKey<URL?>("pgpPrivateKeyURL")
     
     static let pgpPublicKeyArmor = DefaultsKey<String?>("pgpPublicKeyArmor")
     static let pgpPrivateKeyArmor = DefaultsKey<String?>("pgpPrivateKeyArmor")
-    static let pgpKeyID = DefaultsKey<String?>("pgpKeyID")
-    static let pgpKeyUserID = DefaultsKey<String?>("pgpKeyUserID")
     
-    static let gitRepositoryURL = DefaultsKey<URL?>("gitRepositoryURL")
-    static let gitRepositoryAuthenticationMethod = DefaultsKey<String?>("gitRepositoryAuthenticationMethod")
-    static let gitRepositoryUsername = DefaultsKey<String?>("gitRepositoryUsername")
-    static let gitRepositoryPasswordAttempts = DefaultsKey<Int>("gitRepositoryPasswordAttempts")
-    static let gitRepositorySSHPublicKeyURL = DefaultsKey<URL?>("gitRepositorySSHPublicKeyURL")
-    static let gitRepositorySSHPrivateKeyURL = DefaultsKey<URL?>("gitRepositorySSHPrivateKeyURL")
+    static let gitURL = DefaultsKey<URL?>("gitURL")
+    static let gitAuthenticationMethod = DefaultsKey<String?>("gitAuthenticationMethod")
+    static let gitUsername = DefaultsKey<String?>("gitUsername")
+    static let gitPasswordAttempts = DefaultsKey<Int>("gitPasswordAttempts")
+    static let gitSSHPublicKeyURL = DefaultsKey<URL?>("gitSSHPublicKeyURL")
+    static let gitSSHPrivateKeyURL = DefaultsKey<URL?>("gitSSHPrivateKeyURL")
+    static let gitSSHKeySource = DefaultsKey<String?>("gitSSHKeySource")
+    
+    static let gitSSHPublicKeyArmor = DefaultsKey<String?>("gitSSHPublicKeyArmor")
+    static let gitSSHPrivateKeyArmor = DefaultsKey<String?>("gitSSHPrivateKeyArmor")
 
-    static let lastUpdatedTime = DefaultsKey<Date?>("lasteUpdatedTime")
+
+    static let lastSyncedTime = DefaultsKey<Date?>("lastSyncedTime")
     
     static let isTouchIDOn = DefaultsKey<Bool>("isTouchIDOn")
     static let passcodeKey = DefaultsKey<String?>("passcodeKey")
@@ -36,12 +38,7 @@ extension DefaultsKeys {
     static let isHideOTPOn = DefaultsKey<Bool>("isHideOTPOn")
     static let isRememberPassphraseOn = DefaultsKey<Bool>("isRememberPassphraseOn")
     static let isShowFolderOn = DefaultsKey<Bool>("isShowFolderOn")
+    static let passwordGeneratorFlavor = DefaultsKey<String>("passwordGeneratorFlavor")
     
-    static let passwordGenerationMethod = DefaultsKey<String>("passwordGenerationMethod")
-
-    func initDefaultKeys() {
-        if Defaults[.passwordGenerationMethod] == "" {
-            Defaults[.passwordGenerationMethod] = "Random"
-        }
-    }
+    static let encryptInArmored = DefaultsKey<Bool>("encryptInArmored")
 }
