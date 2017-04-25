@@ -50,6 +50,7 @@ class PasswordEditorTableViewController: UITableViewController, FillPasswordTabl
         scanQRCodeCell?.textLabel?.text = "Add One-Time Password"
         scanQRCodeCell?.textLabel?.textColor = Globals.blue
         scanQRCodeCell?.selectionStyle = .default
+        scanQRCodeCell?.accessoryType = .disclosureIndicator
 //        scanQRCodeCell?.imageView?.image = #imageLiteral(resourceName: "Camera").withRenderingMode(.alwaysTemplate)
 //        scanQRCodeCell?.imageView?.tintColor = Globals.blue
 //        scanQRCodeCell?.imageView?.contentMode = .scaleAspectFit
@@ -224,13 +225,5 @@ class PasswordEditorTableViewController: UITableViewController, FillPasswordTabl
     
     @IBAction private func cancelOTPScanner(segue: UIStoryboardSegue) {
         
-    }
-    
-    @IBAction func saveScannedOTP(segue: UIStoryboardSegue) {
-        if let controller = segue.source as? OTPScannerController {
-            if let scannedOTP = controller.scannedOTP {
-                insertScannedOTPFields(scannedOTP)
-            }
-        }
     }
 }
