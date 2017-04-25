@@ -112,7 +112,11 @@ class PasswordsViewController: UIViewController, UITableViewDataSource, UITableV
             SVProgressHUD.show(withStatus: "Saving")
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
-                    let _ = try self.passwordStore.add(password: controller.password!)
+                    try self.passwordStore.add(password: controller.password!, progressBlock: { progress in
+                        DispatchQueue.main.async {
+                            SVProgressHUD.showProgress(progress, status: "Encrypting")
+                        }
+                    })
                     DispatchQueue.main.async {
                         // will trigger reloadTableView() by a notification
                         SVProgressHUD.showSuccess(withStatus: "Done")
@@ -319,19 +323,15 @@ class PasswordsViewController: UIViewController, UITableViewDataSource, UITableV
         }
         let password = getPasswordEntry(by: indexPath).passwordEntity!
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        decryptThenCopyPassword(passwordEntity: password)
-    }
-    
-    
-    
-    private func requestPGPKeyPassphrase() -> String {
-        let sem = DispatchSemaphore(value: 0)
         var passphrase = ""
-        DispatchQueue.main.async {
+        if Defaults[.isRememberPassphraseOn] && self.passwordStore.pgpKeyPassphrase != nil  {
+            passphrase = self.passwordStore.pgpKeyPassphrase!
+            self.decryptThenCopyPassword(passwordEntity: password, passphrase: passphrase)
+        } else {
             let alert = UIAlertController(title: "Passphrase", message: "Please fill in the passphrase of your PGP secret key.", preferredStyle: UIAlertControllerStyle.alert)
             alert.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.default, handler: {_ in
                 passphrase = alert.textFields!.first!.text!
-                sem.signal()
+                self.decryptThenCopyPassword(passwordEntity: password, passphrase: passphrase)
             }))
             alert.addTextField(configurationHandler: {(textField: UITextField!) in
                 textField.text = ""
@@ -339,21 +339,17 @@ class PasswordsViewController: UIViewController, UITableViewDataSource, UITableV
             })
             self.present(alert, animated: true, completion: nil)
         }
-        let _ = sem.wait(timeout: DispatchTime.distantFuture)
-        if Defaults[.isRememberPassphraseOn] {
-            self.passwordStore.pgpKeyPassphrase = passphrase
-        }
-        return passphrase
+
     }
     
-    private func decryptThenCopyPassword(passwordEntity: PasswordEntity) {
+    private func decryptThenCopyPassword(passwordEntity: PasswordEntity, passphrase: String) {
         SVProgressHUD.setDefaultMaskType(.black)
         SVProgressHUD.setDefaultStyle(.dark)
         SVProgressHUD.show(withStatus: "Decrypting")
         DispatchQueue.global(qos: .userInteractive).async {
             var decryptedPassword: Password?
             do {
-                decryptedPassword = try self.passwordStore.decrypt(passwordEntity: passwordEntity, requestPGPKeyPassphrase: self.requestPGPKeyPassphrase)
+                decryptedPassword = try passwordEntity.decrypt(passphrase: passphrase)!
                 DispatchQueue.main.async {
                     Utils.copyToPasteboard(textToCopy: decryptedPassword?.password)
                     SVProgressHUD.showSuccess(withStatus: "Password copied, and will be cleared in 45 seconds.")
@@ -490,9 +486,9 @@ class PasswordsViewController: UIViewController, UITableViewDataSource, UITableV
     }
     
     func actOnReloadTableViewRelatedNotification() {
+        initPasswordsTableEntries(parent: nil)
         DispatchQueue.main.async { [weak weakSelf = self] in
             guard let strongSelf = weakSelf else { return }
-            strongSelf.initPasswordsTableEntries(parent: nil)
             strongSelf.reloadTableView(data: strongSelf.passwordsTableEntries)
         }
     }

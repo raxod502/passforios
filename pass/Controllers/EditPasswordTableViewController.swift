@@ -11,7 +11,7 @@ import UIKit
 class EditPasswordTableViewController: PasswordEditorTableViewController {
     override func viewDidLoad() {
         tableData = [
-            [[.type: PasswordEditorCellType.textFieldCell, .title: "name", .content: password!.namePath]],
+            [[.type: PasswordEditorCellType.textFieldCell, .title: "name", .content: password!.name]],
             [[.type: PasswordEditorCellType.fillPasswordCell, .title: "password", .content: password!.password],
              [.type: PasswordEditorCellType.passwordLengthCell, .title: "passwordlength"]],
             [[.type: PasswordEditorCellType.textViewCell, .title: "additions", .content: password!.getAdditionsPlainText()]],
@@ -24,11 +24,12 @@ class EditPasswordTableViewController: PasswordEditorTableViewController {
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
         if identifier == "saveEditPasswordSegue" {
             if let nameCell = tableView.cellForRow(at: IndexPath(row: 0, section: 0)) as? ContentTableViewCell {
-                if let name = nameCell.getContent(),
-                    let _ = URL(string: name) {
-                    return true
-                } else {
-                    Utils.alert(title: "Cannot Save", message: "Password name is invalid.", controller: self, completion: nil)
+                if nameCell.getContent() != password?.name {
+                    let alertTitle = "Cannot Save Edit"
+                    let alertMessage = "Editing name is not supported."
+                    Utils.alert(title: alertTitle, message: alertMessage, controller: self) {
+                        nameCell.setContent(content: self.password!.name)
+                    }
                     return false
                 }
             }
@@ -53,13 +54,9 @@ class EditPasswordTableViewController: PasswordEditorTableViewController {
             if cellContents["additions"]! != "" {
                 plainText = "\(cellContents["password"]!)\n\(cellContents["additions"]!)"
             } else {
-                plainText = "\(cellContents["password"]!)\n"
+                plainText = "\(cellContents["password"]!)"
             }
-            let name = URL(string: cellContents["name"]!)!.lastPathComponent
-            let url = URL(string: cellContents["name"]!)!.appendingPathExtension("gpg")
-            if password!.plainText != plainText || password!.url!.path != url.path {
-                password!.updatePassword(name: name, url: url, plainText: plainText)
-            }
+            password!.updatePassword(name: cellContents["name"]!, plainText: plainText)
         }
     }
 

@@ -42,6 +42,14 @@ class AddPasswordTableViewController: PasswordEditorTableViewController {
                 Utils.alert(title: alertTitle, message: alertMessage, controller: self, completion: nil)
                 return false
             }
+            
+            // check "/"
+            guard nameCell.getContent()!.contains("/") == false else {
+                let alertTitle = "Cannot Add Password"
+                let alertMessage = "Illegal character."
+                Utils.alert(title: alertTitle, message: alertMessage, controller: self, completion: nil)
+                return false
+            }
         }
         return true
     }
@@ -65,9 +73,7 @@ class AddPasswordTableViewController: PasswordEditorTableViewController {
             } else {
                 plainText = "\(cellContents["password"]!)"
             }
-            let name = URL(string: cellContents["name"]!)!.lastPathComponent
-            let url = URL(string: cellContents["name"]!)!.appendingPathExtension("gpg")
-            password = Password(name: name, url: url, plainText: plainText)
+            password = Password(name: cellContents["name"]!, plainText: plainText)
         }
     }
 }

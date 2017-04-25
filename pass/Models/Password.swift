@@ -20,15 +20,6 @@ class Password {
     static let otpKeywords = ["otp_secret", "otp_type", "otp_algorithm", "otp_period", "otp_digits", "otp_counter", "otpauth"]
     
     var name = ""
-    var url: URL?
-    var namePath: String {
-        get {
-            if url == nil {
-                return ""
-            }
-            return url!.deletingPathExtension().path
-        }
-    }
     var password = ""
     var additions = [String: String]()
     var additionKeys = [String]()
@@ -56,20 +47,19 @@ class Password {
         }
     }
     
-    init(name: String, url: URL?, plainText: String) {
-        self.initEverything(name: name, url: url, plainText: plainText)
+    init(name: String, plainText: String) {
+        self.initEverything(name: name, plainText: plainText)
     }
     
-    func updatePassword(name: String, url: URL?, plainText: String) {
-        if self.plainText != plainText || self.url != url {
-            self.initEverything(name: name, url: url, plainText: plainText)
+    func updatePassword(name: String, plainText: String) {
+        if self.plainText != plainText {
+            self.initEverything(name: name, plainText: plainText)
             changed = true
         }
     }
     
-    private func initEverything(name: String, url: URL?, plainText: String) {
+    private func initEverything(name: String, plainText: String) {
         self.name = name
-        self.url = url
         self.plainText = plainText
         self.additions.removeAll()
         self.additionKeys.removeAll()
@@ -332,7 +322,7 @@ class Password {
         if newOtpauth != nil {
             lines.append(newOtpauth!)
         }
-        self.updatePassword(name: self.name, url: self.url, plainText: lines.joined(separator: "\n"))
+        self.updatePassword(name: self.name, plainText: lines.joined(separator: "\n"))
         
         // get and return the password
         return self.otpToken?.currentPassword

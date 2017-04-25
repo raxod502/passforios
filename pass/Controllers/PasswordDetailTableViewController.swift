@@ -14,6 +14,7 @@ import SVProgressHUD
 class PasswordDetailTableViewController: UITableViewController, UIGestureRecognizerDelegate {
     var passwordEntity: PasswordEntity?
     private var password: Password?
+    private var passwordCategoryText = ""
     private var passwordImage: UIImage?
     private var oneTimePasswordIndexPath : IndexPath?
     private var shouldPopCurrentView = false
@@ -76,6 +77,7 @@ class PasswordDetailTableViewController: UITableViewController, UIGestureRecogni
         tableView.register(UINib(nibName: "LabelTableViewCell", bundle: nil), forCellReuseIdentifier: "labelCell")
         tableView.register(UINib(nibName: "PasswordDetailTitleTableViewCell", bundle: nil), forCellReuseIdentifier: "passwordDetailTitleTableViewCell")
         
+        passwordCategoryText = passwordEntity!.getCategoryText()
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(PasswordDetailTableViewController.tapMenu(recognizer:)))
         tapGesture.cancelsTouchesInView = false
         tableView.addGestureRecognizer(tapGesture)
@@ -94,7 +96,24 @@ class PasswordDetailTableViewController: UITableViewController, UIGestureRecogni
             let image = UIImage(data: imageData as Data)
             passwordImage = image
         }
-        self.decryptThenShowPassword()
+        
+        var passphrase = ""
+        if Defaults[.isRememberPassphraseOn] && self.passwordStore.pgpKeyPassphrase != nil {
+            passphrase = self.passwordStore.pgpKeyPassphrase!
+            self.decryptThenShowPassword(passphrase: passphrase)
+        } else {
+            let alert = UIAlertController(title: "Passphrase", message: "Please fill in the passphrase of your PGP secret key.", preferredStyle: UIAlertControllerStyle.alert)
+            alert.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.default, handler: {_ in
+                passphrase = alert.textFields!.first!.text!
+                self.decryptThenShowPassword(passphrase: passphrase)
+            }))
+            alert.addTextField(configurationHandler: {(textField: UITextField!) in
+                textField.text = ""
+                textField.isSecureTextEntry = true
+            })
+            self.present(alert, animated: true, completion: nil)
+        }
+        
         self.setupOneTimePasswordAutoRefresh()
         
         // pop the current view because this password might be "discarded"
@@ -118,33 +137,14 @@ class PasswordDetailTableViewController: UITableViewController, UIGestureRecogni
         }
     }
     
-    private func requestPGPKeyPassphrase() -> String {
-        let sem = DispatchSemaphore(value: 0)
-        var passphrase = ""
-        DispatchQueue.main.async {
-            let alert = UIAlertController(title: "Passphrase", message: "Please fill in the passphrase of your PGP secret key.", preferredStyle: UIAlertControllerStyle.alert)
-            alert.addAction(UIAlertAction(title: "OK", style: UIAlertActionStyle.default, handler: {_ in
-                passphrase = alert.textFields!.first!.text!
-                sem.signal()
-            }))
-            alert.addTextField(configurationHandler: {(textField: UITextField!) in
-                textField.text = ""
-                textField.isSecureTextEntry = true
-            })
-            self.present(alert, animated: true, completion: nil)
-        }
-        let _ = sem.wait(timeout: DispatchTime.distantFuture)
+    private func decryptThenShowPassword(passphrase: String) {
         if Defaults[.isRememberPassphraseOn] {
             self.passwordStore.pgpKeyPassphrase = passphrase
         }
-        return passphrase
-    }
-    
-    private func decryptThenShowPassword() {
         DispatchQueue.global(qos: .userInitiated).async {
             // decrypt password
             do {
-                self.password = try self.passwordStore.decrypt(passwordEntity: self.passwordEntity!, requestPGPKeyPassphrase: self.requestPGPKeyPassphrase)
+                self.password = try self.passwordEntity!.decrypt(passphrase: passphrase)!
             } catch {
                 DispatchQueue.main.async {
                     let alert = UIAlertController(title: "Cannot Show Password", message: error.localizedDescription, preferredStyle: UIAlertControllerStyle.alert)
@@ -215,14 +215,14 @@ class PasswordDetailTableViewController: UITableViewController, UIGestureRecogni
         if self.password!.changed {
             SVProgressHUD.show(withStatus: "Saving")
             DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    self.passwordEntity = try self.passwordStore.update(passwordEntity: self.passwordEntity!, password: self.password!)
-                } catch {
+                self.passwordStore.update(passwordEntity: self.passwordEntity!, password: self.password!, progressBlock: { progress in
                     DispatchQueue.main.async {
-                        Utils.alert(title: "Error", message: error.localizedDescription, controller: self, completion: nil)
+                        SVProgressHUD.showProgress(progress, status: "Encrypting")
                     }
-                }
+                })
                 DispatchQueue.main.async {
+                    self.passwordEntity!.synced = false
+                    self.passwordStore.saveUpdated(passwordEntity: self.passwordEntity!)
                     self.setTableData()
                     self.tableView.reloadData()
                     SVProgressHUD.showSuccess(withStatus: "Success")
@@ -233,6 +233,7 @@ class PasswordDetailTableViewController: UITableViewController, UIGestureRecogni
     }
     
     @IBAction private func deletePassword(segue: UIStoryboardSegue) {
+        print("delete")
         passwordStore.delete(passwordEntity: passwordEntity!)
         let _ = navigationController?.popViewController(animated: true)
     }
@@ -389,14 +390,10 @@ class PasswordDetailTableViewController: UITableViewController, UIGestureRecogni
         // commit the change of HOTP counter
         if password!.changed {
             DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    self.passwordEntity = try self.passwordStore.update(passwordEntity: self.passwordEntity!, password: self.password!)
-                } catch {
-                    DispatchQueue.main.async {
-                        Utils.alert(title: "Error", message: error.localizedDescription, controller: self, completion: nil)
-                    }
-                }
+                self.passwordStore.update(passwordEntity: self.passwordEntity!, password: self.password!, progressBlock: {_ in })
                 DispatchQueue.main.async {
+                    self.passwordEntity!.synced = false
+                    self.passwordStore.saveUpdated(passwordEntity: self.passwordEntity!)
                     SVProgressHUD.showSuccess(withStatus: "Password Copied\nCounter Updated")
                     SVProgressHUD.dismiss(withDelay: 1)
                 }
@@ -438,7 +435,7 @@ class PasswordDetailTableViewController: UITableViewController, UIGestureRecogni
                     cell.nameLabel.text = passwordName
                 }
             }
-            cell.categoryLabel.text = passwordEntity!.getCategoryText()
+            cell.categoryLabel.text = passwordCategoryText
             cell.selectionStyle = .none
             return cell
         case .main, .addition:
@@ -468,7 +465,7 @@ class PasswordDetailTableViewController: UITableViewController, UIGestureRecogni
             footerLabel.numberOfLines = 0
             footerLabel.font = UIFont.preferredFont(forTextStyle: .footnote)
             footerLabel.textColor = UIColor.gray
-            let dateString = self.passwordStore.getLatestUpdateInfo(filename: password!.url!.path)
+            let dateString = self.passwordStore.getLatestUpdateInfo(filename: (passwordEntity?.path)!)
             footerLabel.text = "Last Updated: \(dateString)"
             view.addSubview(footerLabel)
             return view
