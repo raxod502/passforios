@@ -10,6 +10,7 @@ import UIKit
 import SwiftyUserDefaults
 
 class GitConfigSettingTableViewController: UITableViewController {
+    let passwordStore = PasswordStore.shared
     
     @IBOutlet weak var nameTextField: UITextField!
     @IBOutlet weak var emailTextField: UITextField!
@@ -17,18 +18,20 @@ class GitConfigSettingTableViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         tableView.rowHeight = UITableViewAutomaticDimension
-        nameTextField.text = Defaults[.gitName]
-        emailTextField.text = Defaults[.gitEmail]
+        
+        let signature = passwordStore.gitSignatureForNow
+        nameTextField.placeholder = signature.name
+        emailTextField.placeholder = signature.email
+        nameTextField.text = Defaults[.gitSignatureName]
+        emailTextField.text = Defaults[.gitSignatureEmail]
     }
     
     override func shouldPerformSegue(withIdentifier identifier: String, sender: Any?) -> Bool {
         if identifier == "saveGitConfigSettingSegue" {
-            guard let name = nameTextField.text, !name.isEmpty else {
-                Utils.alert(title: "Cannot Save", message: "Please set name first.", controller: self, completion: nil)
-                return false
-            }
-            guard let email = emailTextField.text, !email.isEmpty else {
-                Utils.alert(title: "Cannot Save", message: "Please set email first.", controller: self, completion: nil)
+            let name = nameTextField.text!.isEmpty ? Globals.gitSignatureDefaultName : nameTextField.text!
+            let email = emailTextField.text!.isEmpty ? Globals.gitSignatureDefaultEmail : nameTextField.text!
+            guard GTSignature(name: name, email: email, time: nil) != nil else {
+                Utils.alert(title: "Error", message: "Invalid name or email.", controller: self, completion: nil)
                 return false
             }
         }

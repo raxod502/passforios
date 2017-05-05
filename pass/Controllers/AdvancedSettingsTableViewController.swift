@@ -31,9 +31,16 @@ class AdvancedSettingsTableViewController: UITableViewController {
         encryptInASCIIArmoredSwitch.isOn = Defaults[.encryptInArmored]
         encryptInASCIIArmoredTableViewCell.accessoryView = encryptInASCIIArmoredSwitch
         encryptInASCIIArmoredTableViewCell.selectionStyle = .none
-        if Defaults[.gitName]?.isEmpty == false && Defaults[.gitEmail]?.isEmpty == false {
-            gitSignatureTableViewCell.detailTextLabel?.text = "Set"
-        } else {
+        setGitSignatureText()
+    }
+    
+    private func setGitSignatureText() {
+        let gitSignatureName = passwordStore.gitSignatureForNow.name!
+        let gitSignatureEmail = passwordStore.gitSignatureForNow.email!
+        self.gitSignatureTableViewCell.detailTextLabel?.font = UIFont.systemFont(ofSize: 14)
+        self.gitSignatureTableViewCell.detailTextLabel?.text = "\(gitSignatureName) <\(gitSignatureEmail)>"
+        if Defaults[.gitSignatureName] == nil && Defaults[.gitSignatureEmail] == nil {
+            self.gitSignatureTableViewCell.detailTextLabel?.font = UIFont.systemFont(ofSize: 17)
             gitSignatureTableViewCell.detailTextLabel?.text = "Not Set"
         }
     }
@@ -54,27 +61,23 @@ class AdvancedSettingsTableViewController: UITableViewController {
         } else if tableView.cellForRow(at: indexPath) == discardChangesTableViewCell {
             let alert = UIAlertController(title: "Discard All Changes?", message: "Do you want to permanently discard all changes to the local copy of your password data? You cannot undo this action.", preferredStyle: UIAlertControllerStyle.alert)
             alert.addAction(UIAlertAction(title: "Discard All Changes", style: UIAlertActionStyle.destructive, handler: {[unowned self] (action) -> Void in
-                DispatchQueue.global(qos: .userInitiated).async {
-                    SVProgressHUD.show(withStatus: "Resetting ...")
-                    DispatchQueue.main.async {
-                        do {
-                            let numberDiscarded = try self.passwordStore.reset()
-                            self.navigationController!.popViewController(animated: true)
-                            switch numberDiscarded {
-                            case 0:
-                                SVProgressHUD.showSuccess(withStatus: "No local commits")
-                            case 1:
-                                SVProgressHUD.showSuccess(withStatus: "Discarded 1 commit")
-                            default:
-                                SVProgressHUD.showSuccess(withStatus: "Discarded \(numberDiscarded) commits")
-                            }
-                            SVProgressHUD.dismiss(withDelay: 1)
-                        } catch {
-                            Utils.alert(title: "Error", message: error.localizedDescription, controller: self, completion: nil)
-                        }
+                SVProgressHUD.show(withStatus: "Resetting ...")
+                do {
+                    let numberDiscarded = try self.passwordStore.reset()
+                    self.navigationController!.popViewController(animated: true)
+                    switch numberDiscarded {
+                    case 0:
+                        SVProgressHUD.showSuccess(withStatus: "No local commits")
+                    case 1:
+                        SVProgressHUD.showSuccess(withStatus: "Discarded 1 commit")
+                    default:
+                        SVProgressHUD.showSuccess(withStatus: "Discarded \(numberDiscarded) commits")
                     }
+                    SVProgressHUD.dismiss(withDelay: 1)
+                } catch {
+                    Utils.alert(title: "Error", message: error.localizedDescription, controller: self, completion: nil)
                 }
-                
+                    
             }))
             alert.addAction(UIAlertAction(title: "Dismiss", style: UIAlertActionStyle.cancel, handler:nil))
             self.present(alert, animated: true, completion: nil)
@@ -90,11 +93,12 @@ class AdvancedSettingsTableViewController: UITableViewController {
     
     @IBAction func saveGitConfigSetting(segue: UIStoryboardSegue) {
         if let controller = segue.source as? GitConfigSettingTableViewController {
-            Defaults[.gitName] = controller.nameTextField.text
-            Defaults[.gitEmail] = controller.emailTextField.text
-            DispatchQueue.main.async {
-                self.gitSignatureTableViewCell.detailTextLabel?.text = "Set"
+            if let gitSignatureName = controller.nameTextField.text,
+                let gitSignatureEmail = controller.emailTextField.text {
+                Defaults[.gitSignatureName] = gitSignatureName.isEmpty ? nil : gitSignatureName
+                Defaults[.gitSignatureEmail] = gitSignatureEmail.isEmpty ? nil : gitSignatureEmail
             }
+            setGitSignatureText()
         }
     }
 

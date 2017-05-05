@@ -15,7 +15,8 @@ class CommitLogsTableViewController: UITableViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        commits = passwordStore.getRecentCommits(count: 20)
+        NotificationCenter.default.addObserver(self, selector: #selector(updateCommitLogs), name: .passwordStoreUpdated, object: nil)
+        commits = getCommitLogs()
         self.tableView.estimatedRowHeight = 50
         self.tableView.rowHeight = UITableViewAutomaticDimension
     }
@@ -38,5 +39,19 @@ class CommitLogsTableViewController: UITableViewController {
         dateLabel?.text = dateString
         messageLabel?.text = commits[indexPath.row].message?.trimmingCharacters(in: .whitespacesAndNewlines)
         return cell
+    }
+    
+    func updateCommitLogs() {
+        commits = getCommitLogs()
+        tableView.reloadData()
+    }
+    
+    private func getCommitLogs() -> [GTCommit] {
+        do {
+            return try passwordStore.getRecentCommits(count: 20)
+        } catch {
+            Utils.alert(title: "Error", message: error.localizedDescription, controller: self, completion: nil)
+            return []
+        }
     }
 }
